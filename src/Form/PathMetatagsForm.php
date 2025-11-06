@@ -131,7 +131,7 @@ class PathMetatagsForm extends FormBase {
           'extensions' => 'jpg jpeg png gif webp',
         ],
         'FileSizeLimit' => [
-          'fileLimit' => '5M',
+          'fileLimit' => 5242880, // 5MB in bytes
         ],
       ],
       '#default_value' => $override && $override->image ? [$override->image] : [],

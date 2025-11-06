@@ -70,7 +70,7 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
         'extensions' => 'jpg jpeg png gif webp',
       ],
       'FileSizeLimit' => [
-        'fileLimit' => '5M',
+        'fileLimit' => 5242880, // 5MB in bytes
       ],
     ],
     '#default_value' => !empty($metatag_data['image']) ? [$metatag_data['image']] : [],
@@ -134,7 +134,7 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
         'extensions' => 'jpg jpeg png gif webp',
       ],
       'FileSizeLimit' => [
-        'fileLimit' => '5M',
+        'fileLimit' => 5242880, // 5MB in bytes
       ],
     ],
     '#default_value' => !empty($metatag_data['image']) ? [$metatag_data['image']] : [],
