@@ -59,6 +59,8 @@ class PathMetatagsController extends ControllerBase {
     $header = [
       $this->t('Path'),
       $this->t('Title'),
+      $this->t('Description'),
+      $this->t('Domain'),
       $this->t('Language'),
       $this->t('Operations'),
     ];
@@ -72,9 +74,26 @@ class PathMetatagsController extends ControllerBase {
     $results = $query->execute()->fetchAll();
 
     foreach ($results as $override) {
+      // Format description (truncate to 80 chars).
+      $description = $override->description;
+      if (!empty($description) && mb_strlen($description) > 80) {
+        $description = mb_substr($description, 0, 80) . '...';
+      }
+
+      // Format domains.
+      $domain_display = $this->t('All');
+      if (!empty($override->domains)) {
+        $domains = unserialize($override->domains);
+        if (is_array($domains) && !empty($domains)) {
+          $domain_display = implode(', ', $domains);
+        }
+      }
+
       $rows[] = [
         $override->path,
         $override->title,
+        $description ?: '-',
+        $domain_display,
         $override->language ?: $this->t('All'),
         [
           'data' => [
