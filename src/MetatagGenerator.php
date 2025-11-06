@@ -6,6 +6,7 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Path\CurrentPathStack;
+use Drupal\Core\Path\PathMatcherInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Url;
 use Drupal\file\Entity\File;
@@ -46,6 +47,13 @@ class MetatagGenerator {
   protected $currentPath;
 
   /**
+   * The path matcher.
+   *
+   * @var \Drupal\Core\Path\PathMatcherInterface
+   */
+  protected $pathMatcher;
+
+  /**
    * The language manager.
    *
    * @var \Drupal\Core\Language\LanguageManagerInterface
@@ -60,12 +68,14 @@ class MetatagGenerator {
     EntityTypeManagerInterface $entity_type_manager,
     RouteMatchInterface $route_match,
     CurrentPathStack $current_path,
+    PathMatcherInterface $path_matcher,
     LanguageManagerInterface $language_manager
   ) {
     $this->database = $database;
     $this->entityTypeManager = $entity_type_manager;
     $this->routeMatch = $route_match;
     $this->currentPath = $current_path;
+    $this->pathMatcher = $path_matcher;
     $this->languageManager = $language_manager;
   }
 
@@ -109,9 +119,8 @@ class MetatagGenerator {
     $current_language = $this->languageManager->getCurrentLanguage()->getId();
     $current_domain = \Drupal::request()->getHost();
 
-    // Check for <front> pattern.
-    $route_name = $this->routeMatch->getRouteName();
-    if ($route_name === 'system.admin') {
+    // Check if this is the front page.
+    if ($this->pathMatcher->isFrontPage()) {
       $current_path = '<front>';
     }
 
