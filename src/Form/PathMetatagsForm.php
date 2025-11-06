@@ -72,39 +72,30 @@ class PathMetatagsForm extends FormBase {
       '#default_value' => $override ? $override->path : '',
     ];
 
-    // Get all available domains from existing overrides.
+    // Get all available domains from Domain module.
     $domain_options = $this->getAvailableDomains();
     $selected_domains = [];
     if ($override && $override->domains) {
       $selected_domains = unserialize($override->domains);
     }
 
-    // If we have domain options, show checkboxes.
-    if (!empty($domain_options)) {
-      $form['domains'] = [
-        '#type' => 'checkboxes',
-        '#title' => $this->t('Domains'),
-        '#description' => $this->t('Select domains. Leave empty to apply to all domains.'),
-        '#options' => $domain_options,
-        '#default_value' => $selected_domains,
-      ];
-    }
-
-    // Always show textfield to add new domains.
-    $form['new_domains'] = [
-      '#type' => 'textarea',
-      '#title' => empty($domain_options) ? $this->t('Domains') : $this->t('Add New Domains'),
-      '#description' => $this->t('Enter one domain per line (e.g., example.com). These will be added to the checkboxes above.'),
-      '#rows' => 3,
-      '#default_value' => !$override && empty($domain_options) ? \Drupal::request()->getHost() : '',
+    $form['domains'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Domains'),
+      '#description' => $this->t('Select domains. Leave empty to apply to all domains.'),
+      '#options' => $domain_options,
+      '#default_value' => $selected_domains,
     ];
 
+    // Get available languages.
+    $language_options = $this->getAvailableLanguages();
     $form['language'] = [
-      '#type' => 'textfield',
+      '#type' => 'select',
       '#title' => $this->t('Language'),
-      '#description' => $this->t('Language code (e.g., en, es, fr). Leave empty for all languages.'),
+      '#description' => $this->t('Select language. Leave empty for all languages.'),
+      '#options' => $language_options,
       '#default_value' => $override ? $override->language : '',
-      '#maxlength' => 12,
+      '#empty_option' => $this->t('- All languages -'),
     ];
 
     $form['title'] = [
@@ -154,22 +145,7 @@ class PathMetatagsForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Process domains from checkboxes.
-    $domains = [];
-    $checkbox_domains = $form_state->getValue('domains');
-    if (!empty($checkbox_domains)) {
-      $domains = array_filter($checkbox_domains);
-    }
-
-    // Process new domains from textarea.
-    $new_domains_text = $form_state->getValue('new_domains');
-    if (!empty($new_domains_text)) {
-      $new_domains = array_filter(array_map('trim', explode("\n", $new_domains_text)));
-      foreach ($new_domains as $domain) {
-        if (!empty($domain)) {
-          $domains[$domain] = $domain;
-        }
-      }
-    }
+    $domains = array_filter($form_state->getValue('domains'));
 
     // Handle file upload.
     $image_fid = NULL;
@@ -218,7 +194,7 @@ class PathMetatagsForm extends FormBase {
   }
 
   /**
-   * Get available domains from existing overrides.
+   * Get available domains from Domain module.
    *
    * @return array
    *   Array of domain options.
@@ -226,25 +202,40 @@ class PathMetatagsForm extends FormBase {
   protected function getAvailableDomains() {
     $domains = [];
 
-    // Get current request domain.
-    $current_domain = \Drupal::request()->getHost();
-    $domains[$current_domain] = $current_domain;
+    // Check if Domain module is installed and get all domains.
+    if (\Drupal::moduleHandler()->moduleExists('domain')) {
+      $domain_storage = \Drupal::entityTypeManager()->getStorage('domain');
+      $domain_entities = $domain_storage->loadMultiple();
 
-    // Get domains from existing overrides.
-    $results = $this->database->select('simple_metatag_path', 'sm')
-      ->fields('sm', ['domains'])
-      ->execute();
-
-    foreach ($results as $row) {
-      if (!empty($row->domains)) {
-        $override_domains = unserialize($row->domains);
-        foreach ($override_domains as $domain) {
-          $domains[$domain] = $domain;
-        }
+      foreach ($domain_entities as $domain) {
+        $hostname = $domain->getHostname();
+        $domains[$hostname] = $domain->label() . ' (' . $hostname . ')';
       }
+    }
+    else {
+      // Fallback: Use current domain if Domain module not installed.
+      $current_domain = \Drupal::request()->getHost();
+      $domains[$current_domain] = $current_domain;
     }
 
     return $domains;
+  }
+
+  /**
+   * Get available languages.
+   *
+   * @return array
+   *   Array of language options.
+   */
+  protected function getAvailableLanguages() {
+    $languages = [];
+
+    $language_manager = \Drupal::languageManager();
+    foreach ($language_manager->getLanguages() as $language) {
+      $languages[$language->getId()] = $language->getName();
+    }
+
+    return $languages;
   }
 
 }
