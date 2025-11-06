@@ -60,8 +60,6 @@ class PathMetatagsController extends ControllerBase {
       $this->t('Path'),
       $this->t('Title'),
       $this->t('Language'),
-      $this->t('Weight'),
-      $this->t('Status'),
       $this->t('Operations'),
     ];
 
@@ -69,7 +67,6 @@ class PathMetatagsController extends ControllerBase {
 
     $query = $this->database->select('simple_metatag_path', 'sm')
       ->fields('sm')
-      ->orderBy('weight', 'DESC')
       ->orderBy('id', 'ASC');
 
     $results = $query->execute()->fetchAll();
@@ -79,8 +76,6 @@ class PathMetatagsController extends ControllerBase {
         $override->path,
         $override->title,
         $override->language ?: $this->t('All'),
-        $override->weight,
-        $override->status ? $this->t('Active') : $this->t('Inactive'),
         [
           'data' => [
             '#type' => 'operations',

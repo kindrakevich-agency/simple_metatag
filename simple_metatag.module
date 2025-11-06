@@ -43,7 +43,6 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
     '#title' => t('Metatags'),
     '#weight' => 100,
     '#open' => FALSE,
-    '#tree' => TRUE,
   ];
 
   $form['simple_metatag']['metatag_title'] = [
@@ -104,7 +103,6 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
     '#title' => t('Metatags'),
     '#weight' => 100,
     '#open' => FALSE,
-    '#tree' => TRUE,
   ];
 
   $form['simple_metatag']['metatag_title'] = [
@@ -147,22 +145,28 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
  * Submit handler for node form - stores values in static variable.
  */
 function simple_metatag_node_form_submit($form, FormStateInterface $form_state) {
-  $metatag_values = $form_state->getValue('simple_metatag');
-  if ($metatag_values) {
-    $storage = &drupal_static('simple_metatag_values', []);
-    $storage['node'] = $metatag_values;
-  }
+  $metatag_values = [
+    'metatag_title' => $form_state->getValue('metatag_title'),
+    'metatag_description' => $form_state->getValue('metatag_description'),
+    'metatag_image' => $form_state->getValue('metatag_image'),
+  ];
+
+  $storage = &drupal_static('simple_metatag_values', []);
+  $storage['node'] = $metatag_values;
 }
 
 /**
  * Submit handler for taxonomy term form - stores values in static variable.
  */
 function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $form_state) {
-  $metatag_values = $form_state->getValue('simple_metatag');
-  if ($metatag_values) {
-    $storage = &drupal_static('simple_metatag_values', []);
-    $storage['taxonomy_term'] = $metatag_values;
-  }
+  $metatag_values = [
+    'metatag_title' => $form_state->getValue('metatag_title'),
+    'metatag_description' => $form_state->getValue('metatag_description'),
+    'metatag_image' => $form_state->getValue('metatag_image'),
+  ];
+
+  $storage = &drupal_static('simple_metatag_values', []);
+  $storage['taxonomy_term'] = $metatag_values;
 }
 
 /**
