@@ -79,12 +79,24 @@ class PathMetatagsForm extends FormBase {
       $selected_domains = unserialize($override->domains);
     }
 
-    $form['domains'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('Domains'),
-      '#description' => $this->t('Select domains. Leave empty to apply to all domains.'),
-      '#options' => $domain_options,
-      '#default_value' => $selected_domains,
+    // If we have domain options, show checkboxes.
+    if (!empty($domain_options)) {
+      $form['domains'] = [
+        '#type' => 'checkboxes',
+        '#title' => $this->t('Domains'),
+        '#description' => $this->t('Select domains. Leave empty to apply to all domains.'),
+        '#options' => $domain_options,
+        '#default_value' => $selected_domains,
+      ];
+    }
+
+    // Always show textfield to add new domains.
+    $form['new_domains'] = [
+      '#type' => 'textarea',
+      '#title' => empty($domain_options) ? $this->t('Domains') : $this->t('Add New Domains'),
+      '#description' => $this->t('Enter one domain per line (e.g., example.com). These will be added to the checkboxes above.'),
+      '#rows' => 3,
+      '#default_value' => !$override && empty($domain_options) ? \Drupal::request()->getHost() : '',
     ];
 
     $form['language'] = [
@@ -122,7 +134,7 @@ class PathMetatagsForm extends FormBase {
           'fileLimit' => '5M',
         ],
       ],
-      '#default_value' => $override && $override->image ? [$override->image] : NULL,
+      '#default_value' => $override && $override->image ? [$override->image] : [],
     ];
 
     $form['actions'] = [
@@ -141,8 +153,23 @@ class PathMetatagsForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    // Process domains.
-    $domains = array_filter($form_state->getValue('domains'));
+    // Process domains from checkboxes.
+    $domains = [];
+    $checkbox_domains = $form_state->getValue('domains');
+    if (!empty($checkbox_domains)) {
+      $domains = array_filter($checkbox_domains);
+    }
+
+    // Process new domains from textarea.
+    $new_domains_text = $form_state->getValue('new_domains');
+    if (!empty($new_domains_text)) {
+      $new_domains = array_filter(array_map('trim', explode("\n", $new_domains_text)));
+      foreach ($new_domains as $domain) {
+        if (!empty($domain)) {
+          $domains[$domain] = $domain;
+        }
+      }
+    }
 
     // Handle file upload.
     $image_fid = NULL;
