@@ -130,13 +130,6 @@ class PathMetatagsForm extends FormBase {
       '#value' => $this->t('Save'),
     ];
 
-    $form['actions']['cancel'] = [
-      '#type' => 'link',
-      '#title' => $this->t('Cancel'),
-      '#url' => \Drupal\Core\Url::fromRoute('simple_metatag.path_metatags_list'),
-      '#attributes' => ['class' => ['button']],
-    ];
-
     return $form;
   }
 

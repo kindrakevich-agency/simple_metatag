@@ -43,6 +43,7 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
     '#title' => t('Metatags'),
     '#weight' => 100,
     '#open' => FALSE,
+    '#tree' => TRUE,
   ];
 
   $form['simple_metatag']['metatag_title'] = [
@@ -73,8 +74,12 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
     '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image if available.'),
   ];
 
-  // Add custom submit handler.
-  $form['actions']['submit']['#submit'][] = 'simple_metatag_node_form_submit';
+  // Add submit handler to store values in tempstore.
+  foreach (array_keys($form['actions']) as $action) {
+    if ($action != 'preview' && isset($form['actions'][$action]['#type']) && $form['actions'][$action]['#type'] === 'submit') {
+      array_unshift($form['actions'][$action]['#submit'], 'simple_metatag_node_form_submit');
+    }
+  }
 }
 
 /**
@@ -99,6 +104,7 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
     '#title' => t('Metatags'),
     '#weight' => 100,
     '#open' => FALSE,
+    '#tree' => TRUE,
   ];
 
   $form['simple_metatag']['metatag_title'] = [
@@ -129,88 +135,88 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
     '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image or latest child node image.'),
   ];
 
-  // Add custom submit handler.
-  $form['actions']['submit']['#submit'][] = 'simple_metatag_taxonomy_term_form_submit';
+  // Add submit handler to store values in tempstore.
+  foreach (array_keys($form['actions']) as $action) {
+    if ($action != 'preview' && isset($form['actions'][$action]['#type']) && $form['actions'][$action]['#type'] === 'submit') {
+      array_unshift($form['actions'][$action]['#submit'], 'simple_metatag_taxonomy_term_form_submit');
+    }
+  }
 }
 
 /**
- * Submit handler for node form.
+ * Submit handler for node form - stores values in static variable.
  */
 function simple_metatag_node_form_submit($form, FormStateInterface $form_state) {
-  $node = $form_state->getFormObject()->getEntity();
-
-  // Only save if node is saved (has ID).
-  if ($node->isNew()) {
-    return;
-  }
-
-  $title = $form_state->getValue(['simple_metatag', 'metatag_title']);
-  $description = $form_state->getValue(['simple_metatag', 'metatag_description']);
-
-  // Handle image upload.
-  $image_fid = NULL;
-  $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
-  if (!empty($image_array[0])) {
-    $file = \Drupal\file\Entity\File::load($image_array[0]);
-    if ($file) {
-      $file->setPermanent();
-      $file->save();
-      $image_fid = $file->id();
-    }
-  }
-
-  // Check if record exists.
-  $database = \Drupal::database();
-  $exists = $database->select('simple_metatag_entity', 'e')
-    ->fields('e', ['id'])
-    ->condition('entity_type', 'node')
-    ->condition('entity_id', $node->id())
-    ->execute()
-    ->fetchField();
-
-  $fields = [
-    'title' => $title,
-    'description' => $description,
-    'image' => $image_fid,
-  ];
-
-  if ($exists) {
-    // Update existing record.
-    $database->update('simple_metatag_entity')
-      ->fields($fields)
-      ->condition('entity_type', 'node')
-      ->condition('entity_id', $node->id())
-      ->execute();
-  }
-  else {
-    // Insert new record.
-    $fields['entity_type'] = 'node';
-    $fields['entity_id'] = $node->id();
-    $database->insert('simple_metatag_entity')
-      ->fields($fields)
-      ->execute();
+  $metatag_values = $form_state->getValue('simple_metatag');
+  if ($metatag_values) {
+    $storage = &drupal_static('simple_metatag_values', []);
+    $storage['node'] = $metatag_values;
   }
 }
 
 /**
- * Submit handler for taxonomy term form.
+ * Submit handler for taxonomy term form - stores values in static variable.
  */
 function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $form_state) {
-  $term = $form_state->getFormObject()->getEntity();
+  $metatag_values = $form_state->getValue('simple_metatag');
+  if ($metatag_values) {
+    $storage = &drupal_static('simple_metatag_values', []);
+    $storage['taxonomy_term'] = $metatag_values;
+  }
+}
 
-  // Only save if term is saved (has ID).
-  if ($term->isNew()) {
+/**
+ * Implements hook_node_insert().
+ */
+function simple_metatag_node_insert(EntityInterface $node) {
+  simple_metatag_save_entity_metatags('node', $node);
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function simple_metatag_node_update(EntityInterface $node) {
+  simple_metatag_save_entity_metatags('node', $node);
+}
+
+/**
+ * Implements hook_taxonomy_term_insert().
+ */
+function simple_metatag_taxonomy_term_insert(EntityInterface $term) {
+  simple_metatag_save_entity_metatags('taxonomy_term', $term);
+}
+
+/**
+ * Implements hook_taxonomy_term_update().
+ */
+function simple_metatag_taxonomy_term_update(EntityInterface $term) {
+  simple_metatag_save_entity_metatags('taxonomy_term', $term);
+}
+
+/**
+ * Save entity metatags to database.
+ *
+ * @param string $entity_type
+ *   The entity type.
+ * @param \Drupal\Core\Entity\EntityInterface $entity
+ *   The entity.
+ */
+function simple_metatag_save_entity_metatags($entity_type, EntityInterface $entity) {
+  // Get metatag values from static variable.
+  $storage = &drupal_static('simple_metatag_values', []);
+  $metatag_data = $storage[$entity_type] ?? NULL;
+
+  if (!$metatag_data) {
     return;
   }
 
-  $title = $form_state->getValue(['simple_metatag', 'metatag_title']);
-  $description = $form_state->getValue(['simple_metatag', 'metatag_description']);
+  $title = $metatag_data['metatag_title'] ?? '';
+  $description = $metatag_data['metatag_description'] ?? '';
+  $image_fid = NULL;
 
   // Handle image upload.
-  $image_fid = NULL;
-  $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
-  if (!empty($image_array[0])) {
-    $file = \Drupal\file\Entity\File::load($image_array[0]);
+  if (!empty($metatag_data['metatag_image'][0])) {
+    $file = \Drupal\file\Entity\File::load($metatag_data['metatag_image'][0]);
     if ($file) {
       $file->setPermanent();
       $file->save();
@@ -222,8 +228,8 @@ function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $for
   $database = \Drupal::database();
   $exists = $database->select('simple_metatag_entity', 'e')
     ->fields('e', ['id'])
-    ->condition('entity_type', 'taxonomy_term')
-    ->condition('entity_id', $term->id())
+    ->condition('entity_type', $entity_type)
+    ->condition('entity_id', $entity->id())
     ->execute()
     ->fetchField();
 
@@ -237,18 +243,21 @@ function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $for
     // Update existing record.
     $database->update('simple_metatag_entity')
       ->fields($fields)
-      ->condition('entity_type', 'taxonomy_term')
-      ->condition('entity_id', $term->id())
+      ->condition('entity_type', $entity_type)
+      ->condition('entity_id', $entity->id())
       ->execute();
   }
   else {
     // Insert new record.
-    $fields['entity_type'] = 'taxonomy_term';
-    $fields['entity_id'] = $term->id();
+    $fields['entity_type'] = $entity_type;
+    $fields['entity_id'] = $entity->id();
     $database->insert('simple_metatag_entity')
       ->fields($fields)
       ->execute();
   }
+
+  // Clear static variable.
+  unset($storage[$entity_type]);
 }
 
 /**
