@@ -1,0 +1,6 @@
+simple_metatag.admin:
+  title: 'Simple Metatag'
+  description: 'Manage path-based metatag overrides.'
+  route_name: simple_metatag.path_metatags_list
+  parent: system.admin_config_search
+  weight: 10

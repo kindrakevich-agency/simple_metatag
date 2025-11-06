@@ -1,0 +1,4 @@
+administer simple metatag:
+  title: 'Administer Simple Metatag'
+  description: 'Manage path-based metatag overrides and settings.'
+  restrict access: true

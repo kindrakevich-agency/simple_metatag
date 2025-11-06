@@ -1,0 +1,124 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the simple_metatag module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function simple_metatag_schema() {
+  $schema['simple_metatag_path'] = [
+    'description' => 'Stores path-based metatag overrides.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique metatag override ID.',
+      ],
+      'path' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'The path pattern (e.g., /blog/*, <front>).',
+      ],
+      'domains' => [
+        'type' => 'text',
+        'not null' => FALSE,
+        'description' => 'Serialized array of domain names.',
+      ],
+      'language' => [
+        'type' => 'varchar',
+        'length' => 12,
+        'not null' => FALSE,
+        'default' => '',
+        'description' => 'Language code.',
+      ],
+      'title' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'description' => 'Meta title.',
+      ],
+      'description' => [
+        'type' => 'text',
+        'not null' => FALSE,
+        'description' => 'Meta description.',
+      ],
+      'image' => [
+        'type' => 'int',
+        'not null' => FALSE,
+        'description' => 'File ID for og:image.',
+      ],
+      'weight' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Weight for sorting (higher = more specific).',
+      ],
+      'status' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+        'size' => 'tiny',
+        'description' => 'Whether this override is active.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'path' => ['path'],
+      'status' => ['status'],
+      'weight' => ['weight'],
+    ],
+  ];
+
+  $schema['simple_metatag_entity'] = [
+    'description' => 'Stores entity-level metatags for nodes and taxonomy terms.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique ID.',
+      ],
+      'entity_type' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'description' => 'Entity type (node, taxonomy_term).',
+      ],
+      'entity_id' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Entity ID.',
+      ],
+      'title' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'description' => 'Meta title.',
+      ],
+      'description' => [
+        'type' => 'text',
+        'not null' => FALSE,
+        'description' => 'Meta description.',
+      ],
+      'image' => [
+        'type' => 'int',
+        'not null' => FALSE,
+        'description' => 'File ID for og:image.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'entity' => ['entity_type', 'entity_id'],
+    ],
+    'indexes' => [
+      'entity_type' => ['entity_type'],
+      'entity_id' => ['entity_id'],
+    ],
+  ];
+
+  return $schema;
+}

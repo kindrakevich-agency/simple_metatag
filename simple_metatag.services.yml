@@ -1,0 +1,10 @@
+services:
+  simple_metatag.generator:
+    class: Drupal\simple_metatag\MetatagGenerator
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+      - '@current_route_match'
+      - '@path.current'
+      - '@path.matcher'
+      - '@language_manager'
