@@ -30,15 +30,14 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
   $form['simple_metatag'] = [
     '#type' => 'details',
     '#title' => t('Metatags'),
-    '#group' => 'advanced',
     '#weight' => 100,
-    '#optional' => TRUE,
+    '#open' => FALSE,
   ];
 
   $form['simple_metatag']['metatag_title'] = [
     '#type' => 'textfield',
     '#title' => t('Meta Title'),
-    '#default_value' => $node->hasField('metatag_title') ? $node->get('metatag_title')->value : '',
+    '#default_value' => $node->hasField('metatag_title') && !$node->get('metatag_title')->isEmpty() ? $node->get('metatag_title')->value : '',
     '#maxlength' => 255,
     '#description' => t('Leave empty to auto-generate from node title.'),
   ];
@@ -46,10 +45,21 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
   $form['simple_metatag']['metatag_description'] = [
     '#type' => 'textarea',
     '#title' => t('Meta Description'),
-    '#default_value' => $node->hasField('metatag_description') ? $node->get('metatag_description')->value : '',
+    '#default_value' => $node->hasField('metatag_description') && !$node->get('metatag_description')->isEmpty() ? $node->get('metatag_description')->value : '',
     '#rows' => 3,
-    '#maxlength' => 320,
     '#description' => t('Leave empty to auto-generate from node body. Recommended: 150-160 characters.'),
+  ];
+
+  $form['simple_metatag']['metatag_image'] = [
+    '#type' => 'managed_file',
+    '#title' => t('Meta Image'),
+    '#upload_location' => 'public://metatag/',
+    '#upload_validators' => [
+      'file_validate_extensions' => ['jpg jpeg png gif webp'],
+      'file_validate_size' => [5 * 1024 * 1024],
+    ],
+    '#default_value' => $node->hasField('metatag_image') && !$node->get('metatag_image')->isEmpty() ? [$node->get('metatag_image')->target_id] : NULL,
+    '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image if available.'),
   ];
 
   $form['actions']['submit']['#submit'][] = 'simple_metatag_node_form_submit';
@@ -64,15 +74,14 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
   $form['simple_metatag'] = [
     '#type' => 'details',
     '#title' => t('Metatags'),
-    '#group' => 'advanced',
     '#weight' => 100,
-    '#optional' => TRUE,
+    '#open' => FALSE,
   ];
 
   $form['simple_metatag']['metatag_title'] = [
     '#type' => 'textfield',
     '#title' => t('Meta Title'),
-    '#default_value' => $term->hasField('metatag_title') ? $term->get('metatag_title')->value : '',
+    '#default_value' => $term->hasField('metatag_title') && !$term->get('metatag_title')->isEmpty() ? $term->get('metatag_title')->value : '',
     '#maxlength' => 255,
     '#description' => t('Leave empty to auto-generate from term name.'),
   ];
@@ -80,10 +89,21 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
   $form['simple_metatag']['metatag_description'] = [
     '#type' => 'textarea',
     '#title' => t('Meta Description'),
-    '#default_value' => $term->hasField('metatag_description') ? $term->get('metatag_description')->value : '',
+    '#default_value' => $term->hasField('metatag_description') && !$term->get('metatag_description')->isEmpty() ? $term->get('metatag_description')->value : '',
     '#rows' => 3,
-    '#maxlength' => 320,
     '#description' => t('Leave empty to auto-generate from term description. Recommended: 150-160 characters.'),
+  ];
+
+  $form['simple_metatag']['metatag_image'] = [
+    '#type' => 'managed_file',
+    '#title' => t('Meta Image'),
+    '#upload_location' => 'public://metatag/',
+    '#upload_validators' => [
+      'file_validate_extensions' => ['jpg jpeg png gif webp'],
+      'file_validate_size' => [5 * 1024 * 1024],
+    ],
+    '#default_value' => $term->hasField('metatag_image') && !$term->get('metatag_image')->isEmpty() ? [$term->get('metatag_image')->target_id] : NULL,
+    '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image or latest child node image.'),
   ];
 
   $form['actions']['submit']['#submit'][] = 'simple_metatag_taxonomy_term_form_submit';
@@ -103,6 +123,22 @@ function simple_metatag_node_form_submit($form, FormStateInterface $form_state) 
     $node->set('metatag_description', $form_state->getValue('metatag_description'));
   }
 
+  // Handle image upload.
+  if ($node->hasField('metatag_image')) {
+    $image_array = $form_state->getValue('metatag_image');
+    if (!empty($image_array[0])) {
+      $file = \Drupal\file\Entity\File::load($image_array[0]);
+      if ($file) {
+        $file->setPermanent();
+        $file->save();
+        $node->set('metatag_image', $file->id());
+      }
+    }
+    else {
+      $node->set('metatag_image', NULL);
+    }
+  }
+
   $node->save();
 }
 
@@ -118,6 +154,22 @@ function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $for
   }
   if ($term->hasField('metatag_description')) {
     $term->set('metatag_description', $form_state->getValue('metatag_description'));
+  }
+
+  // Handle image upload.
+  if ($term->hasField('metatag_image')) {
+    $image_array = $form_state->getValue('metatag_image');
+    if (!empty($image_array[0])) {
+      $file = \Drupal\file\Entity\File::load($image_array[0]);
+      if ($file) {
+        $file->setPermanent();
+        $file->save();
+        $term->set('metatag_image', $file->id());
+      }
+    }
+    else {
+      $term->set('metatag_image', NULL);
+    }
   }
 
   $term->save();
@@ -187,6 +239,18 @@ function simple_metatag_entity_base_field_info(\Drupal\Core\Entity\EntityTypeInt
       ->setLabel(t('Meta Description'))
       ->setDescription(t('The meta description for this content.'))
       ->setTranslatable(TRUE)
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayConfigurable('view', FALSE);
+
+    $fields['metatag_image'] = \Drupal\Core\Field\BaseFieldDefinition::create('file')
+      ->setLabel(t('Meta Image'))
+      ->setDescription(t('The meta image for this content.'))
+      ->setSettings([
+        'file_extensions' => 'jpg jpeg png gif webp',
+        'file_directory' => 'metatag',
+        'max_filesize' => '5 MB',
+        'target_type' => 'file',
+      ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', FALSE);
   }

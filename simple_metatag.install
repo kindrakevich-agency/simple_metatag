@@ -47,10 +47,9 @@ function simple_metatag_schema() {
         'description' => 'Meta description.',
       ],
       'image' => [
-        'type' => 'varchar',
-        'length' => 512,
+        'type' => 'int',
         'not null' => FALSE,
-        'description' => 'Image URL for og:image.',
+        'description' => 'File ID for og:image.',
       ],
       'weight' => [
         'type' => 'int',

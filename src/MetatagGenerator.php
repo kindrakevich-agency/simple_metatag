@@ -199,7 +199,11 @@ class MetatagGenerator {
     }
 
     if (!empty($override['image'])) {
-      $metatags['og:image'] = $override['image'];
+      // Image is stored as file ID.
+      $file = File::load($override['image']);
+      if ($file) {
+        $metatags['og:image'] = $this->getAbsoluteFileUrl($file);
+      }
     }
 
     $metatags['og:url'] = $base_url . $this->currentPath->getPath();
@@ -355,6 +359,15 @@ class MetatagGenerator {
    *   The image URL or NULL.
    */
   protected function getNodeImageUrl(NodeInterface $node) {
+    // First check for metatag_image.
+    if ($node->hasField('metatag_image') && !$node->get('metatag_image')->isEmpty()) {
+      $image = $node->get('metatag_image')->entity;
+      if ($image) {
+        return $this->getAbsoluteFileUrl($image);
+      }
+    }
+
+    // Fall back to field_image.
     if ($node->hasField('field_image') && !$node->get('field_image')->isEmpty()) {
       $image = $node->get('field_image')->first();
       if ($image && $image->entity) {
@@ -374,7 +387,15 @@ class MetatagGenerator {
    *   The image URL or NULL.
    */
   protected function getTermImageUrl(TermInterface $term) {
-    // First, try to get image from term itself.
+    // First check for metatag_image.
+    if ($term->hasField('metatag_image') && !$term->get('metatag_image')->isEmpty()) {
+      $image = $term->get('metatag_image')->entity;
+      if ($image) {
+        return $this->getAbsoluteFileUrl($image);
+      }
+    }
+
+    // Then try to get image from term itself.
     if ($term->hasField('field_image') && !$term->get('field_image')->isEmpty()) {
       $image = $term->get('field_image')->first();
       if ($image && $image->entity) {

@@ -72,12 +72,26 @@ class PathMetatagsForm extends FormBase {
       '#default_value' => $override ? $override->path : '',
     ];
 
+    // Get all available domains from existing overrides.
+    $domain_options = $this->getAvailableDomains();
+    $selected_domains = [];
+    if ($override && $override->domains) {
+      $selected_domains = unserialize($override->domains);
+    }
+
     $form['domains'] = [
-      '#type' => 'textarea',
+      '#type' => 'checkboxes',
       '#title' => $this->t('Domains'),
-      '#description' => $this->t('Enter one domain per line. Leave empty to apply to all domains.'),
-      '#default_value' => $override && $override->domains ? implode("\n", unserialize($override->domains)) : '',
-      '#rows' => 3,
+      '#description' => $this->t('Select domains. Leave empty to apply to all domains.'),
+      '#options' => $domain_options,
+      '#default_value' => $selected_domains,
+    ];
+
+    $form['add_domain'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Add new domain'),
+      '#description' => $this->t('Enter a domain name to add it to the list (e.g., example.com).'),
+      '#maxlength' => 255,
     ];
 
     $form['language'] = [
@@ -91,7 +105,6 @@ class PathMetatagsForm extends FormBase {
     $form['title'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Meta Title'),
-      '#required' => TRUE,
       '#default_value' => $override ? $override->title : '',
       '#maxlength' => 255,
     ];
@@ -99,30 +112,20 @@ class PathMetatagsForm extends FormBase {
     $form['description'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Meta Description'),
-      '#required' => TRUE,
       '#default_value' => $override ? $override->description : '',
       '#rows' => 3,
     ];
 
     $form['image'] = [
-      '#type' => 'url',
-      '#title' => $this->t('Image URL'),
-      '#description' => $this->t('Full URL to the og:image (e.g., https://example.com/image.jpg).'),
-      '#default_value' => $override ? $override->image : '',
-      '#maxlength' => 512,
-    ];
-
-    $form['weight'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Weight'),
-      '#description' => $this->t('Higher weight = higher priority. More specific paths should have higher weight.'),
-      '#default_value' => $override ? $override->weight : 0,
-    ];
-
-    $form['status'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Active'),
-      '#default_value' => $override ? $override->status : 1,
+      '#type' => 'managed_file',
+      '#title' => $this->t('Image'),
+      '#description' => $this->t('Upload an image for og:image metatag.'),
+      '#upload_location' => 'public://metatag/',
+      '#upload_validators' => [
+        'file_validate_extensions' => ['jpg jpeg png gif webp'],
+        'file_validate_size' => [5 * 1024 * 1024], // 5MB max
+      ],
+      '#default_value' => $override && $override->image ? [$override->image] : NULL,
     ];
 
     $form['actions'] = [
@@ -148,18 +151,36 @@ class PathMetatagsForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $domains_text = $form_state->getValue('domains');
-    $domains = array_filter(array_map('trim', explode("\n", $domains_text)));
+    // Process domains.
+    $domains = array_filter($form_state->getValue('domains'));
+
+    // Add new domain if provided.
+    $new_domain = trim($form_state->getValue('add_domain'));
+    if (!empty($new_domain)) {
+      $domains[$new_domain] = $new_domain;
+    }
+
+    // Handle file upload.
+    $image_fid = NULL;
+    $image_array = $form_state->getValue('image');
+    if (!empty($image_array[0])) {
+      $file = \Drupal\file\Entity\File::load($image_array[0]);
+      if ($file) {
+        $file->setPermanent();
+        $file->save();
+        $image_fid = $file->id();
+      }
+    }
 
     $fields = [
       'path' => $form_state->getValue('path'),
-      'domains' => !empty($domains) ? serialize($domains) : NULL,
+      'domains' => !empty($domains) ? serialize(array_values($domains)) : NULL,
       'language' => $form_state->getValue('language'),
       'title' => $form_state->getValue('title'),
       'description' => $form_state->getValue('description'),
-      'image' => $form_state->getValue('image'),
-      'weight' => $form_state->getValue('weight'),
-      'status' => $form_state->getValue('status') ? 1 : 0,
+      'image' => $image_fid,
+      'weight' => 0,
+      'status' => 1,
     ];
 
     $id = $form_state->getValue('id');
@@ -183,6 +204,36 @@ class PathMetatagsForm extends FormBase {
     }
 
     $form_state->setRedirect('simple_metatag.path_metatags_list');
+  }
+
+  /**
+   * Get available domains from existing overrides.
+   *
+   * @return array
+   *   Array of domain options.
+   */
+  protected function getAvailableDomains() {
+    $domains = [];
+
+    // Get current request domain.
+    $current_domain = \Drupal::request()->getHost();
+    $domains[$current_domain] = $current_domain;
+
+    // Get domains from existing overrides.
+    $results = $this->database->select('simple_metatag_path', 'sm')
+      ->fields('sm', ['domains'])
+      ->execute();
+
+    foreach ($results as $row) {
+      if (!empty($row->domains)) {
+        $override_domains = unserialize($row->domains);
+        foreach ($override_domains as $domain) {
+          $domains[$domain] = $domain;
+        }
+      }
+    }
+
+    return $domains;
   }
 
 }
