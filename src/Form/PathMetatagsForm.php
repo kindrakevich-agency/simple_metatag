@@ -87,13 +87,6 @@ class PathMetatagsForm extends FormBase {
       '#default_value' => $selected_domains,
     ];
 
-    $form['add_domain'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Add new domain'),
-      '#description' => $this->t('Enter a domain name to add it to the list (e.g., example.com).'),
-      '#maxlength' => 255,
-    ];
-
     $form['language'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Language'),
@@ -153,12 +146,6 @@ class PathMetatagsForm extends FormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Process domains.
     $domains = array_filter($form_state->getValue('domains'));
-
-    // Add new domain if provided.
-    $new_domain = trim($form_state->getValue('add_domain'));
-    if (!empty($new_domain)) {
-      $domains[$new_domain] = $new_domain;
-    }
 
     // Handle file upload.
     $image_fid = NULL;

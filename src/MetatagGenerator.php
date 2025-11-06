@@ -241,8 +241,10 @@ class MetatagGenerator {
     else {
       $description = $this->generateDescriptionFromBody($node);
     }
-    $metatags['description'] = $description;
-    $metatags['og:description'] = $description;
+    if (!empty($description)) {
+      $metatags['description'] = $description;
+      $metatags['og:description'] = $description;
+    }
 
     // Image.
     $image_url = $this->getNodeImageUrl($node);
@@ -286,8 +288,10 @@ class MetatagGenerator {
     else {
       $description = $this->generateDescriptionFromTerm($term);
     }
-    $metatags['description'] = $description;
-    $metatags['og:description'] = $description;
+    if (!empty($description)) {
+      $metatags['description'] = $description;
+      $metatags['og:description'] = $description;
+    }
 
     // Image.
     $image_url = $this->getTermImageUrl($term);

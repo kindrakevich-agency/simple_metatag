@@ -58,11 +58,12 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
       'file_validate_extensions' => ['jpg jpeg png gif webp'],
       'file_validate_size' => [5 * 1024 * 1024],
     ],
-    '#default_value' => $node->hasField('metatag_image') && !$node->get('metatag_image')->isEmpty() ? [$node->get('metatag_image')->target_id] : NULL,
+    '#default_value' => $node->hasField('metatag_image') && !$node->get('metatag_image')->isEmpty() ? [$node->get('metatag_image')->target_id] : [],
     '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image if available.'),
   ];
 
-  $form['actions']['submit']['#submit'][] = 'simple_metatag_node_form_submit';
+  // Add custom submit handler at the beginning.
+  array_unshift($form['actions']['submit']['#submit'], 'simple_metatag_node_form_submit');
 }
 
 /**
@@ -102,11 +103,12 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
       'file_validate_extensions' => ['jpg jpeg png gif webp'],
       'file_validate_size' => [5 * 1024 * 1024],
     ],
-    '#default_value' => $term->hasField('metatag_image') && !$term->get('metatag_image')->isEmpty() ? [$term->get('metatag_image')->target_id] : NULL,
+    '#default_value' => $term->hasField('metatag_image') && !$term->get('metatag_image')->isEmpty() ? [$term->get('metatag_image')->target_id] : [],
     '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image or latest child node image.'),
   ];
 
-  $form['actions']['submit']['#submit'][] = 'simple_metatag_taxonomy_term_form_submit';
+  // Add custom submit handler at the beginning.
+  array_unshift($form['actions']['submit']['#submit'], 'simple_metatag_taxonomy_term_form_submit');
 }
 
 /**
@@ -117,15 +119,15 @@ function simple_metatag_node_form_submit($form, FormStateInterface $form_state) 
 
   // Store metatag values.
   if ($node->hasField('metatag_title')) {
-    $node->set('metatag_title', $form_state->getValue('metatag_title'));
+    $node->set('metatag_title', $form_state->getValue(['simple_metatag', 'metatag_title']));
   }
   if ($node->hasField('metatag_description')) {
-    $node->set('metatag_description', $form_state->getValue('metatag_description'));
+    $node->set('metatag_description', $form_state->getValue(['simple_metatag', 'metatag_description']));
   }
 
   // Handle image upload.
   if ($node->hasField('metatag_image')) {
-    $image_array = $form_state->getValue('metatag_image');
+    $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
     if (!empty($image_array[0])) {
       $file = \Drupal\file\Entity\File::load($image_array[0]);
       if ($file) {
@@ -138,8 +140,6 @@ function simple_metatag_node_form_submit($form, FormStateInterface $form_state) 
       $node->set('metatag_image', NULL);
     }
   }
-
-  $node->save();
 }
 
 /**
@@ -150,15 +150,15 @@ function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $for
 
   // Store metatag values.
   if ($term->hasField('metatag_title')) {
-    $term->set('metatag_title', $form_state->getValue('metatag_title'));
+    $term->set('metatag_title', $form_state->getValue(['simple_metatag', 'metatag_title']));
   }
   if ($term->hasField('metatag_description')) {
-    $term->set('metatag_description', $form_state->getValue('metatag_description'));
+    $term->set('metatag_description', $form_state->getValue(['simple_metatag', 'metatag_description']));
   }
 
   // Handle image upload.
   if ($term->hasField('metatag_image')) {
-    $image_array = $form_state->getValue('metatag_image');
+    $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
     if (!empty($image_array[0])) {
       $file = \Drupal\file\Entity\File::load($image_array[0]);
       if ($file) {
@@ -171,8 +171,6 @@ function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $for
       $term->set('metatag_image', NULL);
     }
   }
-
-  $term->save();
 }
 
 /**
