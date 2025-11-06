@@ -27,6 +27,17 @@ function simple_metatag_help($route_name, RouteMatchInterface $route_match) {
 function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   $node = $form_state->getFormObject()->getEntity();
 
+  // Load existing metatag data from database.
+  $metatag_data = [];
+  if (!$node->isNew()) {
+    $metatag_data = \Drupal::database()->select('simple_metatag_entity', 'e')
+      ->fields('e')
+      ->condition('entity_type', 'node')
+      ->condition('entity_id', $node->id())
+      ->execute()
+      ->fetchAssoc();
+  }
+
   $form['simple_metatag'] = [
     '#type' => 'details',
     '#title' => t('Metatags'),
@@ -37,7 +48,7 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
   $form['simple_metatag']['metatag_title'] = [
     '#type' => 'textfield',
     '#title' => t('Meta Title'),
-    '#default_value' => $node->hasField('metatag_title') && !$node->get('metatag_title')->isEmpty() ? $node->get('metatag_title')->value : '',
+    '#default_value' => $metatag_data['title'] ?? '',
     '#maxlength' => 255,
     '#description' => t('Leave empty to auto-generate from node title.'),
   ];
@@ -45,7 +56,7 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
   $form['simple_metatag']['metatag_description'] = [
     '#type' => 'textarea',
     '#title' => t('Meta Description'),
-    '#default_value' => $node->hasField('metatag_description') && !$node->get('metatag_description')->isEmpty() ? $node->get('metatag_description')->value : '',
+    '#default_value' => $metatag_data['description'] ?? '',
     '#rows' => 3,
     '#description' => t('Leave empty to auto-generate from node body. Recommended: 150-160 characters.'),
   ];
@@ -58,12 +69,12 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
       'file_validate_extensions' => ['jpg jpeg png gif webp'],
       'file_validate_size' => [5 * 1024 * 1024],
     ],
-    '#default_value' => $node->hasField('metatag_image') && !$node->get('metatag_image')->isEmpty() ? [$node->get('metatag_image')->target_id] : [],
+    '#default_value' => !empty($metatag_data['image']) ? [$metatag_data['image']] : [],
     '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image if available.'),
   ];
 
-  // Add custom submit handler at the beginning.
-  array_unshift($form['actions']['submit']['#submit'], 'simple_metatag_node_form_submit');
+  // Add custom submit handler.
+  $form['actions']['submit']['#submit'][] = 'simple_metatag_node_form_submit';
 }
 
 /**
@@ -71,6 +82,17 @@ function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_st
  */
 function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface $form_state, $form_id) {
   $term = $form_state->getFormObject()->getEntity();
+
+  // Load existing metatag data from database.
+  $metatag_data = [];
+  if (!$term->isNew()) {
+    $metatag_data = \Drupal::database()->select('simple_metatag_entity', 'e')
+      ->fields('e')
+      ->condition('entity_type', 'taxonomy_term')
+      ->condition('entity_id', $term->id())
+      ->execute()
+      ->fetchAssoc();
+  }
 
   $form['simple_metatag'] = [
     '#type' => 'details',
@@ -82,7 +104,7 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
   $form['simple_metatag']['metatag_title'] = [
     '#type' => 'textfield',
     '#title' => t('Meta Title'),
-    '#default_value' => $term->hasField('metatag_title') && !$term->get('metatag_title')->isEmpty() ? $term->get('metatag_title')->value : '',
+    '#default_value' => $metatag_data['title'] ?? '',
     '#maxlength' => 255,
     '#description' => t('Leave empty to auto-generate from term name.'),
   ];
@@ -90,7 +112,7 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
   $form['simple_metatag']['metatag_description'] = [
     '#type' => 'textarea',
     '#title' => t('Meta Description'),
-    '#default_value' => $term->hasField('metatag_description') && !$term->get('metatag_description')->isEmpty() ? $term->get('metatag_description')->value : '',
+    '#default_value' => $metatag_data['description'] ?? '',
     '#rows' => 3,
     '#description' => t('Leave empty to auto-generate from term description. Recommended: 150-160 characters.'),
   ];
@@ -103,12 +125,12 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
       'file_validate_extensions' => ['jpg jpeg png gif webp'],
       'file_validate_size' => [5 * 1024 * 1024],
     ],
-    '#default_value' => $term->hasField('metatag_image') && !$term->get('metatag_image')->isEmpty() ? [$term->get('metatag_image')->target_id] : [],
+    '#default_value' => !empty($metatag_data['image']) ? [$metatag_data['image']] : [],
     '#description' => t('Upload an image for og:image metatag. Leave empty to use field_image or latest child node image.'),
   ];
 
-  // Add custom submit handler at the beginning.
-  array_unshift($form['actions']['submit']['#submit'], 'simple_metatag_taxonomy_term_form_submit');
+  // Add custom submit handler.
+  $form['actions']['submit']['#submit'][] = 'simple_metatag_taxonomy_term_form_submit';
 }
 
 /**
@@ -117,28 +139,56 @@ function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface
 function simple_metatag_node_form_submit($form, FormStateInterface $form_state) {
   $node = $form_state->getFormObject()->getEntity();
 
-  // Store metatag values.
-  if ($node->hasField('metatag_title')) {
-    $node->set('metatag_title', $form_state->getValue(['simple_metatag', 'metatag_title']));
-  }
-  if ($node->hasField('metatag_description')) {
-    $node->set('metatag_description', $form_state->getValue(['simple_metatag', 'metatag_description']));
+  // Only save if node is saved (has ID).
+  if ($node->isNew()) {
+    return;
   }
 
+  $title = $form_state->getValue(['simple_metatag', 'metatag_title']);
+  $description = $form_state->getValue(['simple_metatag', 'metatag_description']);
+
   // Handle image upload.
-  if ($node->hasField('metatag_image')) {
-    $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
-    if (!empty($image_array[0])) {
-      $file = \Drupal\file\Entity\File::load($image_array[0]);
-      if ($file) {
-        $file->setPermanent();
-        $file->save();
-        $node->set('metatag_image', $file->id());
-      }
+  $image_fid = NULL;
+  $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
+  if (!empty($image_array[0])) {
+    $file = \Drupal\file\Entity\File::load($image_array[0]);
+    if ($file) {
+      $file->setPermanent();
+      $file->save();
+      $image_fid = $file->id();
     }
-    else {
-      $node->set('metatag_image', NULL);
-    }
+  }
+
+  // Check if record exists.
+  $database = \Drupal::database();
+  $exists = $database->select('simple_metatag_entity', 'e')
+    ->fields('e', ['id'])
+    ->condition('entity_type', 'node')
+    ->condition('entity_id', $node->id())
+    ->execute()
+    ->fetchField();
+
+  $fields = [
+    'title' => $title,
+    'description' => $description,
+    'image' => $image_fid,
+  ];
+
+  if ($exists) {
+    // Update existing record.
+    $database->update('simple_metatag_entity')
+      ->fields($fields)
+      ->condition('entity_type', 'node')
+      ->condition('entity_id', $node->id())
+      ->execute();
+  }
+  else {
+    // Insert new record.
+    $fields['entity_type'] = 'node';
+    $fields['entity_id'] = $node->id();
+    $database->insert('simple_metatag_entity')
+      ->fields($fields)
+      ->execute();
   }
 }
 
@@ -148,28 +198,56 @@ function simple_metatag_node_form_submit($form, FormStateInterface $form_state) 
 function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $form_state) {
   $term = $form_state->getFormObject()->getEntity();
 
-  // Store metatag values.
-  if ($term->hasField('metatag_title')) {
-    $term->set('metatag_title', $form_state->getValue(['simple_metatag', 'metatag_title']));
-  }
-  if ($term->hasField('metatag_description')) {
-    $term->set('metatag_description', $form_state->getValue(['simple_metatag', 'metatag_description']));
+  // Only save if term is saved (has ID).
+  if ($term->isNew()) {
+    return;
   }
 
+  $title = $form_state->getValue(['simple_metatag', 'metatag_title']);
+  $description = $form_state->getValue(['simple_metatag', 'metatag_description']);
+
   // Handle image upload.
-  if ($term->hasField('metatag_image')) {
-    $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
-    if (!empty($image_array[0])) {
-      $file = \Drupal\file\Entity\File::load($image_array[0]);
-      if ($file) {
-        $file->setPermanent();
-        $file->save();
-        $term->set('metatag_image', $file->id());
-      }
+  $image_fid = NULL;
+  $image_array = $form_state->getValue(['simple_metatag', 'metatag_image']);
+  if (!empty($image_array[0])) {
+    $file = \Drupal\file\Entity\File::load($image_array[0]);
+    if ($file) {
+      $file->setPermanent();
+      $file->save();
+      $image_fid = $file->id();
     }
-    else {
-      $term->set('metatag_image', NULL);
-    }
+  }
+
+  // Check if record exists.
+  $database = \Drupal::database();
+  $exists = $database->select('simple_metatag_entity', 'e')
+    ->fields('e', ['id'])
+    ->condition('entity_type', 'taxonomy_term')
+    ->condition('entity_id', $term->id())
+    ->execute()
+    ->fetchField();
+
+  $fields = [
+    'title' => $title,
+    'description' => $description,
+    'image' => $image_fid,
+  ];
+
+  if ($exists) {
+    // Update existing record.
+    $database->update('simple_metatag_entity')
+      ->fields($fields)
+      ->condition('entity_type', 'taxonomy_term')
+      ->condition('entity_id', $term->id())
+      ->execute();
+  }
+  else {
+    // Insert new record.
+    $fields['entity_type'] = 'taxonomy_term';
+    $fields['entity_id'] = $term->id();
+    $database->insert('simple_metatag_entity')
+      ->fields($fields)
+      ->execute();
   }
 }
 
@@ -217,41 +295,4 @@ function simple_metatag_page_attachments(array &$attachments) {
       }
     }
   }
-}
-
-/**
- * Implements hook_entity_base_field_info().
- */
-function simple_metatag_entity_base_field_info(\Drupal\Core\Entity\EntityTypeInterface $entity_type) {
-  $fields = [];
-
-  if ($entity_type->id() === 'node' || $entity_type->id() === 'taxonomy_term') {
-    $fields['metatag_title'] = \Drupal\Core\Field\BaseFieldDefinition::create('string')
-      ->setLabel(t('Meta Title'))
-      ->setDescription(t('The meta title for this content.'))
-      ->setTranslatable(TRUE)
-      ->setDisplayConfigurable('form', TRUE)
-      ->setDisplayConfigurable('view', FALSE);
-
-    $fields['metatag_description'] = \Drupal\Core\Field\BaseFieldDefinition::create('string_long')
-      ->setLabel(t('Meta Description'))
-      ->setDescription(t('The meta description for this content.'))
-      ->setTranslatable(TRUE)
-      ->setDisplayConfigurable('form', TRUE)
-      ->setDisplayConfigurable('view', FALSE);
-
-    $fields['metatag_image'] = \Drupal\Core\Field\BaseFieldDefinition::create('file')
-      ->setLabel(t('Meta Image'))
-      ->setDescription(t('The meta image for this content.'))
-      ->setSettings([
-        'file_extensions' => 'jpg jpeg png gif webp',
-        'file_directory' => 'metatag',
-        'max_filesize' => '5 MB',
-        'target_type' => 'file',
-      ])
-      ->setDisplayConfigurable('form', TRUE)
-      ->setDisplayConfigurable('view', FALSE);
-  }
-
-  return $fields;
 }

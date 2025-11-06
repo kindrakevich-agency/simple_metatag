@@ -73,5 +73,52 @@ function simple_metatag_schema() {
     ],
   ];
 
+  $schema['simple_metatag_entity'] = [
+    'description' => 'Stores entity-level metatags for nodes and taxonomy terms.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique ID.',
+      ],
+      'entity_type' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'description' => 'Entity type (node, taxonomy_term).',
+      ],
+      'entity_id' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Entity ID.',
+      ],
+      'title' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'description' => 'Meta title.',
+      ],
+      'description' => [
+        'type' => 'text',
+        'not null' => FALSE,
+        'description' => 'Meta description.',
+      ],
+      'image' => [
+        'type' => 'int',
+        'not null' => FALSE,
+        'description' => 'File ID for og:image.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'entity' => ['entity_type', 'entity_id'],
+    ],
+    'indexes' => [
+      'entity_type' => ['entity_type'],
+      'entity_id' => ['entity_id'],
+    ],
+  ];
+
   return $schema;
 }

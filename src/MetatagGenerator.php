@@ -224,9 +224,17 @@ class MetatagGenerator {
     global $base_url;
     $metatags = [];
 
+    // Load metatag data from database.
+    $metatag_data = $this->database->select('simple_metatag_entity', 'e')
+      ->fields('e')
+      ->condition('entity_type', 'node')
+      ->condition('entity_id', $node->id())
+      ->execute()
+      ->fetchAssoc();
+
     // Title.
-    if ($node->hasField('metatag_title') && !empty($node->get('metatag_title')->value)) {
-      $title = $node->get('metatag_title')->value;
+    if (!empty($metatag_data['title'])) {
+      $title = $metatag_data['title'];
     }
     else {
       $title = $node->getTitle();
@@ -235,8 +243,8 @@ class MetatagGenerator {
     $metatags['og:title'] = $title;
 
     // Description.
-    if ($node->hasField('metatag_description') && !empty($node->get('metatag_description')->value)) {
-      $description = $node->get('metatag_description')->value;
+    if (!empty($metatag_data['description'])) {
+      $description = $metatag_data['description'];
     }
     else {
       $description = $this->generateDescriptionFromBody($node);
@@ -247,7 +255,7 @@ class MetatagGenerator {
     }
 
     // Image.
-    $image_url = $this->getNodeImageUrl($node);
+    $image_url = $this->getNodeImageUrl($node, $metatag_data);
     if ($image_url) {
       $metatags['og:image'] = $image_url;
     }
@@ -271,9 +279,17 @@ class MetatagGenerator {
     global $base_url;
     $metatags = [];
 
+    // Load metatag data from database.
+    $metatag_data = $this->database->select('simple_metatag_entity', 'e')
+      ->fields('e')
+      ->condition('entity_type', 'taxonomy_term')
+      ->condition('entity_id', $term->id())
+      ->execute()
+      ->fetchAssoc();
+
     // Title.
-    if ($term->hasField('metatag_title') && !empty($term->get('metatag_title')->value)) {
-      $title = $term->get('metatag_title')->value;
+    if (!empty($metatag_data['title'])) {
+      $title = $metatag_data['title'];
     }
     else {
       $title = $term->getName();
@@ -282,8 +298,8 @@ class MetatagGenerator {
     $metatags['og:title'] = $title;
 
     // Description.
-    if ($term->hasField('metatag_description') && !empty($term->get('metatag_description')->value)) {
-      $description = $term->get('metatag_description')->value;
+    if (!empty($metatag_data['description'])) {
+      $description = $metatag_data['description'];
     }
     else {
       $description = $this->generateDescriptionFromTerm($term);
@@ -294,7 +310,7 @@ class MetatagGenerator {
     }
 
     // Image.
-    $image_url = $this->getTermImageUrl($term);
+    $image_url = $this->getTermImageUrl($term, $metatag_data);
     if ($image_url) {
       $metatags['og:image'] = $image_url;
     }
@@ -358,16 +374,18 @@ class MetatagGenerator {
    *
    * @param \Drupal\node\NodeInterface $node
    *   The node entity.
+   * @param array $metatag_data
+   *   Metatag data from database.
    *
    * @return string|null
    *   The image URL or NULL.
    */
-  protected function getNodeImageUrl(NodeInterface $node) {
-    // First check for metatag_image.
-    if ($node->hasField('metatag_image') && !$node->get('metatag_image')->isEmpty()) {
-      $image = $node->get('metatag_image')->entity;
-      if ($image) {
-        return $this->getAbsoluteFileUrl($image);
+  protected function getNodeImageUrl(NodeInterface $node, $metatag_data = []) {
+    // First check for metatag_image from database.
+    if (!empty($metatag_data['image'])) {
+      $file = File::load($metatag_data['image']);
+      if ($file) {
+        return $this->getAbsoluteFileUrl($file);
       }
     }
 
@@ -386,16 +404,18 @@ class MetatagGenerator {
    *
    * @param \Drupal\taxonomy\TermInterface $term
    *   The taxonomy term entity.
+   * @param array $metatag_data
+   *   Metatag data from database.
    *
    * @return string|null
    *   The image URL or NULL.
    */
-  protected function getTermImageUrl(TermInterface $term) {
-    // First check for metatag_image.
-    if ($term->hasField('metatag_image') && !$term->get('metatag_image')->isEmpty()) {
-      $image = $term->get('metatag_image')->entity;
-      if ($image) {
-        return $this->getAbsoluteFileUrl($image);
+  protected function getTermImageUrl(TermInterface $term, $metatag_data = []) {
+    // First check for metatag_image from database.
+    if (!empty($metatag_data['image'])) {
+      $file = File::load($metatag_data['image']);
+      if ($file) {
+        return $this->getAbsoluteFileUrl($file);
       }
     }
 
