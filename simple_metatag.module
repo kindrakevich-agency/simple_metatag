@@ -1,0 +1,195 @@
+<?php
+
+/**
+ * @file
+ * Main module file for simple_metatag.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function simple_metatag_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.simple_metatag':
+      $output = '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Simple Metatag module provides automatic metatag generation for nodes and taxonomy terms.') . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter() for node_form.
+ */
+function simple_metatag_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $node = $form_state->getFormObject()->getEntity();
+
+  $form['simple_metatag'] = [
+    '#type' => 'details',
+    '#title' => t('Metatags'),
+    '#group' => 'advanced',
+    '#weight' => 100,
+    '#optional' => TRUE,
+  ];
+
+  $form['simple_metatag']['metatag_title'] = [
+    '#type' => 'textfield',
+    '#title' => t('Meta Title'),
+    '#default_value' => $node->hasField('metatag_title') ? $node->get('metatag_title')->value : '',
+    '#maxlength' => 255,
+    '#description' => t('Leave empty to auto-generate from node title.'),
+  ];
+
+  $form['simple_metatag']['metatag_description'] = [
+    '#type' => 'textarea',
+    '#title' => t('Meta Description'),
+    '#default_value' => $node->hasField('metatag_description') ? $node->get('metatag_description')->value : '',
+    '#rows' => 3,
+    '#maxlength' => 320,
+    '#description' => t('Leave empty to auto-generate from node body. Recommended: 150-160 characters.'),
+  ];
+
+  $form['actions']['submit']['#submit'][] = 'simple_metatag_node_form_submit';
+}
+
+/**
+ * Implements hook_form_BASE_FORM_ID_alter() for taxonomy_term_form.
+ */
+function simple_metatag_form_taxonomy_term_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $term = $form_state->getFormObject()->getEntity();
+
+  $form['simple_metatag'] = [
+    '#type' => 'details',
+    '#title' => t('Metatags'),
+    '#group' => 'advanced',
+    '#weight' => 100,
+    '#optional' => TRUE,
+  ];
+
+  $form['simple_metatag']['metatag_title'] = [
+    '#type' => 'textfield',
+    '#title' => t('Meta Title'),
+    '#default_value' => $term->hasField('metatag_title') ? $term->get('metatag_title')->value : '',
+    '#maxlength' => 255,
+    '#description' => t('Leave empty to auto-generate from term name.'),
+  ];
+
+  $form['simple_metatag']['metatag_description'] = [
+    '#type' => 'textarea',
+    '#title' => t('Meta Description'),
+    '#default_value' => $term->hasField('metatag_description') ? $term->get('metatag_description')->value : '',
+    '#rows' => 3,
+    '#maxlength' => 320,
+    '#description' => t('Leave empty to auto-generate from term description. Recommended: 150-160 characters.'),
+  ];
+
+  $form['actions']['submit']['#submit'][] = 'simple_metatag_taxonomy_term_form_submit';
+}
+
+/**
+ * Submit handler for node form.
+ */
+function simple_metatag_node_form_submit($form, FormStateInterface $form_state) {
+  $node = $form_state->getFormObject()->getEntity();
+
+  // Store metatag values.
+  if ($node->hasField('metatag_title')) {
+    $node->set('metatag_title', $form_state->getValue('metatag_title'));
+  }
+  if ($node->hasField('metatag_description')) {
+    $node->set('metatag_description', $form_state->getValue('metatag_description'));
+  }
+
+  $node->save();
+}
+
+/**
+ * Submit handler for taxonomy term form.
+ */
+function simple_metatag_taxonomy_term_form_submit($form, FormStateInterface $form_state) {
+  $term = $form_state->getFormObject()->getEntity();
+
+  // Store metatag values.
+  if ($term->hasField('metatag_title')) {
+    $term->set('metatag_title', $form_state->getValue('metatag_title'));
+  }
+  if ($term->hasField('metatag_description')) {
+    $term->set('metatag_description', $form_state->getValue('metatag_description'));
+  }
+
+  $term->save();
+}
+
+/**
+ * Implements hook_page_attachments().
+ */
+function simple_metatag_page_attachments(array &$attachments) {
+  $metatag_service = \Drupal::service('simple_metatag.generator');
+  $metatags = $metatag_service->generateMetatags();
+
+  if (!empty($metatags)) {
+    foreach ($metatags as $key => $value) {
+      if ($key === 'title') {
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'title',
+            '#value' => $value,
+          ],
+          'title',
+        ];
+      }
+      elseif (strpos($key, 'og:') === 0) {
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'meta',
+            '#attributes' => [
+              'property' => $key,
+              'content' => $value,
+            ],
+          ],
+          'metatag_' . str_replace(':', '_', $key),
+        ];
+      }
+      else {
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'meta',
+            '#attributes' => [
+              'name' => $key,
+              'content' => $value,
+            ],
+          ],
+          'metatag_' . $key,
+        ];
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_base_field_info().
+ */
+function simple_metatag_entity_base_field_info(\Drupal\Core\Entity\EntityTypeInterface $entity_type) {
+  $fields = [];
+
+  if ($entity_type->id() === 'node' || $entity_type->id() === 'taxonomy_term') {
+    $fields['metatag_title'] = \Drupal\Core\Field\BaseFieldDefinition::create('string')
+      ->setLabel(t('Meta Title'))
+      ->setDescription(t('The meta title for this content.'))
+      ->setTranslatable(TRUE)
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayConfigurable('view', FALSE);
+
+    $fields['metatag_description'] = \Drupal\Core\Field\BaseFieldDefinition::create('string_long')
+      ->setLabel(t('Meta Description'))
+      ->setDescription(t('The meta description for this content.'))
+      ->setTranslatable(TRUE)
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayConfigurable('view', FALSE);
+  }
+
+  return $fields;
+}

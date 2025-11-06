@@ -1,0 +1,33 @@
+simple_metatag.path_metatags_list:
+  path: '/admin/config/search/simple-metatag'
+  defaults:
+    _controller: '\Drupal\simple_metatag\Controller\PathMetatagsController::listOverrides'
+    _title: 'Path-based Metatag Overrides'
+  requirements:
+    _permission: 'administer simple metatag'
+
+simple_metatag.path_metatags_add:
+  path: '/admin/config/search/simple-metatag/add'
+  defaults:
+    _form: '\Drupal\simple_metatag\Form\PathMetatagsForm'
+    _title: 'Add Path-based Metatag Override'
+  requirements:
+    _permission: 'administer simple metatag'
+
+simple_metatag.path_metatags_edit:
+  path: '/admin/config/search/simple-metatag/{id}/edit'
+  defaults:
+    _form: '\Drupal\simple_metatag\Form\PathMetatagsForm'
+    _title: 'Edit Path-based Metatag Override'
+  requirements:
+    _permission: 'administer simple metatag'
+    id: \d+
+
+simple_metatag.path_metatags_delete:
+  path: '/admin/config/search/simple-metatag/{id}/delete'
+  defaults:
+    _controller: '\Drupal\simple_metatag\Controller\PathMetatagsController::deleteOverride'
+    _title: 'Delete Path-based Metatag Override'
+  requirements:
+    _permission: 'administer simple metatag'
+    id: \d+

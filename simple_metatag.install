@@ -1,0 +1,78 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the simple_metatag module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function simple_metatag_schema() {
+  $schema['simple_metatag_path'] = [
+    'description' => 'Stores path-based metatag overrides.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique metatag override ID.',
+      ],
+      'path' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'The path pattern (e.g., /blog/*, <front>).',
+      ],
+      'domains' => [
+        'type' => 'text',
+        'not null' => FALSE,
+        'description' => 'Serialized array of domain names.',
+      ],
+      'language' => [
+        'type' => 'varchar',
+        'length' => 12,
+        'not null' => FALSE,
+        'default' => '',
+        'description' => 'Language code.',
+      ],
+      'title' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'description' => 'Meta title.',
+      ],
+      'description' => [
+        'type' => 'text',
+        'not null' => FALSE,
+        'description' => 'Meta description.',
+      ],
+      'image' => [
+        'type' => 'varchar',
+        'length' => 512,
+        'not null' => FALSE,
+        'description' => 'Image URL for og:image.',
+      ],
+      'weight' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Weight for sorting (higher = more specific).',
+      ],
+      'status' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+        'size' => 'tiny',
+        'description' => 'Whether this override is active.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'path' => ['path'],
+      'status' => ['status'],
+      'weight' => ['weight'],
+    ],
+  ];
+
+  return $schema;
+}
