@@ -115,8 +115,12 @@ class PathMetatagsForm extends FormBase {
       '#description' => $this->t('Upload an image for og:image metatag.'),
       '#upload_location' => 'public://metatag/',
       '#upload_validators' => [
-        'file_validate_extensions' => ['jpg jpeg png gif webp'],
-        'file_validate_size' => [5 * 1024 * 1024], // 5MB max
+        'FileExtension' => [
+          'extensions' => 'jpg jpeg png gif webp',
+        ],
+        'FileSizeLimit' => [
+          'fileLimit' => '5M',
+        ],
       ],
       '#default_value' => $override && $override->image ? [$override->image] : NULL,
     ];
