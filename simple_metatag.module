@@ -282,33 +282,22 @@ function simple_metatag_page_attachments_alter(array &$attachments) {
   if (!empty($metatags)) {
     foreach ($metatags as $key => $value) {
       if ($key === 'title') {
-        // Replace existing title tag instead of adding a new one.
-        $title_found = FALSE;
+        // Remove all existing title tags first.
         if (isset($attachments['#attached']['html_head'])) {
           foreach ($attachments['#attached']['html_head'] as $index => $item) {
             if (isset($item[1]) && $item[1] === 'title') {
-              $attachments['#attached']['html_head'][$index] = [
-                [
-                  '#tag' => 'title',
-                  '#value' => $value,
-                ],
-                'title',
-              ];
-              $title_found = TRUE;
-              break;
+              unset($attachments['#attached']['html_head'][$index]);
             }
           }
         }
-        // Only add if no existing title was found.
-        if (!$title_found) {
-          $attachments['#attached']['html_head'][] = [
-            [
-              '#tag' => 'title',
-              '#value' => $value,
-            ],
-            'title',
-          ];
-        }
+        // Now add our new title tag.
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'title',
+            '#value' => $value,
+          ],
+          'title',
+        ];
       }
       elseif (strpos($key, 'og:') === 0) {
         $attachments['#attached']['html_head'][] = [
