@@ -280,7 +280,7 @@ function simple_metatag_preprocess_html(&$variables) {
   $metatags = $metatag_service->generateMetatags();
 
   if (!empty($metatags['title'])) {
-    // Override the head_title variable to prevent duplicate titles.
+    // Override the head_title variable to set the page title.
     $variables['head_title'] = [
       'title' => $metatags['title'],
     ];
@@ -295,29 +295,23 @@ function simple_metatag_page_attachments_alter(array &$attachments) {
   $metatags = $metatag_service->generateMetatags();
 
   if (!empty($metatags)) {
-    foreach ($metatags as $key => $value) {
-      // Decode HTML entities for proper display.
-      $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-      if ($key === 'title') {
-        // Remove all existing title tags first, regardless of their key.
-        if (isset($attachments['#attached']['html_head'])) {
-          foreach ($attachments['#attached']['html_head'] as $index => $item) {
-            if (isset($item[0]['#tag']) && $item[0]['#tag'] === 'title') {
-              unset($attachments['#attached']['html_head'][$index]);
-            }
-          }
+    // Remove all existing title tags from html_head to prevent duplicates.
+    // Title is handled via hook_preprocess_html instead.
+    if (isset($attachments['#attached']['html_head'])) {
+      foreach ($attachments['#attached']['html_head'] as $index => $item) {
+        if (isset($item[0]['#tag']) && $item[0]['#tag'] === 'title') {
+          unset($attachments['#attached']['html_head'][$index]);
         }
-        // Now add our new title tag.
-        $attachments['#attached']['html_head'][] = [
-          [
-            '#tag' => 'title',
-            '#value' => $value,
-          ],
-          'title',
-        ];
       }
-      elseif (strpos($key, 'og:') === 0) {
+    }
+
+    foreach ($metatags as $key => $value) {
+      // Skip title - it's handled via hook_preprocess_html.
+      if ($key === 'title') {
+        continue;
+      }
+
+      if (strpos($key, 'og:') === 0) {
         $attachments['#attached']['html_head'][] = [
           [
             '#tag' => 'meta',
