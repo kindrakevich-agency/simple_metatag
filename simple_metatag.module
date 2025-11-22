@@ -273,9 +273,9 @@ function simple_metatag_save_entity_metatags($entity_type, EntityInterface $enti
 }
 
 /**
- * Implements hook_page_attachments().
+ * Implements hook_page_attachments_alter().
  */
-function simple_metatag_page_attachments(array &$attachments) {
+function simple_metatag_page_attachments_alter(array &$attachments) {
   $metatag_service = \Drupal::service('simple_metatag.generator');
   $metatags = $metatag_service->generateMetatags();
 
