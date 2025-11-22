@@ -280,9 +280,10 @@ function simple_metatag_preprocess_html(&$variables) {
   $metatags = $metatag_service->generateMetatags();
 
   if (!empty($metatags['title'])) {
-    // Override the head_title variable to set the page title.
+    // Decode HTML entities and override the head_title variable.
+    $title = html_entity_decode($metatags['title'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     $variables['head_title'] = [
-      'title' => $metatags['title'],
+      'title' => $title,
     ];
   }
 }
@@ -311,13 +312,16 @@ function simple_metatag_page_attachments_alter(array &$attachments) {
         continue;
       }
 
+      // Decode HTML entities for proper display.
+      $decoded_value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
       if (strpos($key, 'og:') === 0) {
         $attachments['#attached']['html_head'][] = [
           [
             '#tag' => 'meta',
             '#attributes' => [
               'property' => $key,
-              'content' => $value,
+              'content' => $decoded_value,
             ],
           ],
           'metatag_' . str_replace(':', '_', $key),
@@ -329,7 +333,7 @@ function simple_metatag_page_attachments_alter(array &$attachments) {
             '#tag' => 'meta',
             '#attributes' => [
               'name' => $key,
-              'content' => $value,
+              'content' => $decoded_value,
             ],
           ],
           'metatag_' . $key,
