@@ -198,13 +198,15 @@ class MetatagGenerator {
     $metatags = [];
 
     if (!empty($override['title'])) {
-      $metatags['title'] = $override['title'];
-      $metatags['og:title'] = $override['title'];
+      $title = html_entity_decode($override['title'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+      $metatags['title'] = $title;
+      $metatags['og:title'] = $title;
     }
 
     if (!empty($override['description'])) {
-      $metatags['description'] = $override['description'];
-      $metatags['og:description'] = $override['description'];
+      $description = html_entity_decode($override['description'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+      $metatags['description'] = $description;
+      $metatags['og:description'] = $description;
     }
 
     if (!empty($override['image'])) {
@@ -248,7 +250,20 @@ class MetatagGenerator {
     else {
       $title = $node->getTitle();
     }
-    $metatags['title'] = $title;
+
+    // Decode HTML entities.
+    $title = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    // Add site name to node title.
+    $site_name = \Drupal::config('system.site')->get('name');
+    if ($site_name) {
+      $metatags['title'] = $title . ' | ' . $site_name;
+    }
+    else {
+      $metatags['title'] = $title;
+    }
+
+    // og:title should not have site name.
     $metatags['og:title'] = $title;
 
     // Description.
@@ -259,6 +274,8 @@ class MetatagGenerator {
       $description = $this->generateDescriptionFromBody($node);
     }
     if (!empty($description)) {
+      // Decode HTML entities.
+      $description = html_entity_decode($description, ENT_QUOTES | ENT_HTML5, 'UTF-8');
       $metatags['description'] = $description;
       $metatags['og:description'] = $description;
     }
@@ -303,7 +320,20 @@ class MetatagGenerator {
     else {
       $title = $term->getName();
     }
-    $metatags['title'] = $title;
+
+    // Decode HTML entities.
+    $title = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    // Add site name to term title.
+    $site_name = \Drupal::config('system.site')->get('name');
+    if ($site_name) {
+      $metatags['title'] = $title . ' | ' . $site_name;
+    }
+    else {
+      $metatags['title'] = $title;
+    }
+
+    // og:title should not have site name.
     $metatags['og:title'] = $title;
 
     // Description.
@@ -314,6 +344,8 @@ class MetatagGenerator {
       $description = $this->generateDescriptionFromTerm($term);
     }
     if (!empty($description)) {
+      // Decode HTML entities.
+      $description = html_entity_decode($description, ENT_QUOTES | ENT_HTML5, 'UTF-8');
       $metatags['description'] = $description;
       $metatags['og:description'] = $description;
     }
